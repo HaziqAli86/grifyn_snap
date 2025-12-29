@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Backend Connection Test</title>
+</head>
+<body>
+    <h1>Backend Connection Test</h1>
+    <button onclick="testConnection()">Test Backend Connection</button>
+    <div id="result"></div>
+
+    <script>
+        async function testConnection() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Testing...';
+            
+            try {
+                // Test 1: Simple GET request
+                console.log('Testing GET /health...');
+                const healthResponse = await fetch('http://localhost:8000/health');
+                const healthData = await healthResponse.json();
+                console.log('Health check response:', healthData);
+                console.log('CORS Headers:', {
+                    'Access-Control-Allow-Origin': healthResponse.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': healthResponse.headers.get('Access-Control-Allow-Methods'),
+                });
+                
+                // Test 2: OPTIONS request (preflight)
+                console.log('Testing OPTIONS /api/v1/auth/register...');
+                const optionsResponse = await fetch('http://localhost:8000/api/v1/auth/register', {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Origin': 'http://localhost:5138',
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+                console.log('OPTIONS response status:', optionsResponse.status);
+                console.log('OPTIONS CORS Headers:', {
+                    'Access-Control-Allow-Origin': optionsResponse.headers.get('Access-Control-Allow-Origin'),
+                    'Access-Control-Allow-Methods': optionsResponse.headers.get('Access-Control-Allow-Methods'),
+                    'Access-Control-Allow-Headers': optionsResponse.headers.get('Access-Control-Allow-Headers'),
+                });
+                
+                resultDiv.innerHTML = `
+                    <h2>✅ Connection Successful!</h2>
+                    <p><strong>Health Check:</strong> ${JSON.stringify(healthData, null, 2)}</p>
+                    <p><strong>OPTIONS Status:</strong> ${optionsResponse.status}</p>
+                    <p><strong>CORS Headers:</strong></p>
+                    <ul>
+                        <li>Access-Control-Allow-Origin: ${optionsResponse.headers.get('Access-Control-Allow-Origin') || 'MISSING'}</li>
+                        <li>Access-Control-Allow-Methods: ${optionsResponse.headers.get('Access-Control-Allow-Methods') || 'MISSING'}</li>
+                    </ul>
+                `;
+            } catch (error) {
+                console.error('Connection test failed:', error);
+                resultDiv.innerHTML = `
+                    <h2>❌ Connection Failed</h2>
+                    <p><strong>Error:</strong> ${error.message}</p>
+                    <p>Make sure:</p>
+                    <ul>
+                        <li>Backend server is running on http://localhost:8000</li>
+                        <li>No firewall is blocking the connection</li>
+                        <li>Check browser console for more details</li>
+                    </ul>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>
+
+
