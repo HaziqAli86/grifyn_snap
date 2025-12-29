@@ -1,8 +1,9 @@
 from typing import Any, List
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.api.deps import get_current_user
-from app.models.user import User, UserResponse
-from app.models.registry import Child
+from app.models.user import User, UserResponse, UserUpdatePassword
+from app.models.registry import Child, Gift, Pledge
+from app.core.security import verify_password, get_password_hash
 
 router = APIRouter()
 
@@ -14,6 +15,50 @@ async def read_users_me(
     Get current user.
     """
     return UserResponse(id=str(current_user.id), email=current_user.email)
+
+@router.put("/me/password")
+async def update_password(
+    password_data: UserUpdatePassword,
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Update user password.
+    """
+    if not verify_password(password_data.current_password, current_user.hashed_password):
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+    
+    current_user.hashed_password = get_password_hash(password_data.new_password)
+    await current_user.save()
+    
+    return {"message": "Password updated successfully"}
+
+@router.delete("/me")
+async def delete_user_account(
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Delete user account and all associated data.
+    """
+    # Find all children associated with the user
+    children = await Child.find(Child.user_id == str(current_user.id)).to_list()
+    
+    for child in children:
+        child_id = str(child.id)
+        # Delete all pledges associated with gifts for this child
+        # This is tricky because pledges are linked to gift_id, not child_id directly in the model definition above
+        # But wait, Pledge model DOES have child_id: Indexed(str)
+        await Pledge.find(Pledge.child_id == child_id).delete()
+        
+        # Delete all gifts for this child
+        await Gift.find(Gift.child_id == child_id).delete()
+        
+        # Delete the child
+        await child.delete()
+        
+    # Delete the user
+    await current_user.delete()
+    
+    return {"message": "Account and all associated data deleted successfully"}
 
 @router.get("/me/saved-registries", response_model=List[str])
 async def get_saved_registries(

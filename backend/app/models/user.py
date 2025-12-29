@@ -19,3 +19,7 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: str
     email: EmailStr
+
+class UserUpdatePassword(BaseModel):
+    current_password: str
+    new_password: str

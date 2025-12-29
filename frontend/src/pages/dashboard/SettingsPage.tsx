@@ -3,8 +3,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import { useRegistry } from "@/context/RegistryContext";
 import { Button } from "@/components/ui/button";
+import api from "@/utils/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,8 +23,7 @@ import {
 import { showSuccess, showError } from "@/utils/toast";
 
 const SettingsPage = () => {
-  const { user, signOut, signIn } = useAuth(); // signIn is used to re-authenticate for password change
-  const { children, allGifts, allPledges } = useRegistry(); // Access all data to clear on account deletion
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
 
   const [currentPassword, setCurrentPassword] = useState("");
@@ -47,43 +46,43 @@ const SettingsPage = () => {
     if (!user) return;
 
     if (validatePasswordChange()) {
-      // Mock re-authentication for password change
-      const reAuthSuccess = await signIn(user.email, currentPassword);
-      if (!reAuthSuccess) {
-        setPasswordErrors((prev) => ({ ...prev, currentPassword: "Incorrect current password." }));
-        return;
-      }
+      try {
+        await api.put("/users/me/password", {
+          current_password: currentPassword,
+          new_password: newPassword,
+        });
 
-      // Update password in mock_users
-      const mockUsers = JSON.parse(localStorage.getItem('grifyn_mock_users') || '{}');
-      if (mockUsers[user.email]) {
-        mockUsers[user.email].password = newPassword;
-        localStorage.setItem('grifyn_mock_users', JSON.stringify(mockUsers));
         showSuccess("Password updated successfully!");
         setCurrentPassword("");
         setNewPassword("");
         setConfirmNewPassword("");
         setPasswordErrors({});
-      } else {
-        showError("User not found. Please try again.");
+      } catch (error: any) {
+        console.error(error);
+        if (error.response?.status === 400) {
+            setPasswordErrors((prev) => ({ ...prev, currentPassword: "Incorrect current password." }));
+        } else {
+            const message = error.response?.data?.detail || "Failed to update password.";
+            showError(message);
+        }
       }
     }
   };
 
-  const handleDeleteAccount = () => {
+  const handleDeleteAccount = async () => {
     if (!user) return;
 
-    // Clear user-specific data from localStorage
-    localStorage.removeItem(`grifyn_registry_data_${user.id}`);
-
-    // Remove user from mock_users
-    const mockUsers = JSON.parse(localStorage.getItem('grifyn_mock_users') || '{}');
-    delete mockUsers[user.email];
-    localStorage.setItem('grifyn_mock_users', JSON.stringify(mockUsers));
-
-    signOut(); // Sign out the user
-    showSuccess("Your account and all associated data have been deleted.");
-    navigate("/"); // Redirect to home page
+    try {
+      await api.delete("/users/me");
+      
+      signOut(); // Sign out the user and clear local storage
+      showSuccess("Your account and all associated data have been deleted.");
+      navigate("/"); // Redirect to home page
+    } catch (error: any) {
+      console.error(error);
+      const message = error.response?.data?.detail || "Failed to delete account.";
+      showError(message);
+    }
   };
 
   return (
