@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     DATABASE_NAME: str = "grifyn_db"
 
     BACKEND_CORS_ORIGINS: List[str] = [
+        "https://grifyn-snap.onrender.com",
         "http://localhost:5173",
         "http://localhost:3000",
         "http://localhost:5138", # Added current frontend port
