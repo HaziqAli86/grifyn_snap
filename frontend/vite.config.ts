@@ -8,6 +8,9 @@ export default defineConfig(() => ({
     host: "::",
     port: 5137,
   },
+  preview: {
+    allowedHosts: ["grifyn-snap.onrender.com"],
+  },
   plugins: [dyadComponentTagger(), react()],
   resolve: {
     alias: {
